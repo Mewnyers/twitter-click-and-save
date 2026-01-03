@@ -126,8 +126,8 @@ const datePattern = "YYYY.MM.DD";
  *
  * Note, that the script updating will overwrite the changes.
  * */
-const imageFilenameTemplate      = `[twitter]{sampleText} {author}—{lastModifiedDate}—{tweetId}—{name}.{extension}`;
-const videoFilenameTemplate      = `[twitter] {author}—{lastModifiedDate}—{tweetId}—{name}.{extension}`;
+const imageFilenameTemplate      = `[twitter]{sampleText} {tweetContent}—{author}—{lastModifiedDate}—{name}.{extension}`;
+const videoFilenameTemplate      = `[twitter] {tweetContent}—{author}—{lastModifiedDate}—{name}.{extension}`;
 const backgroundFilenameTemplate = `[twitter][bg] {username}—{lastModifiedDate}—{id}—{seconds}.{extension}`;
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -981,9 +981,26 @@ function hoistFeatures() {
             Core._verifyBlob(blob, currentUrl); // throws an error for 503 http status code
             Btn.completeProgress(btn);
 
-            const sampleText = isSample ? "[sample]" : ""; // "[sample]" prefix, when the original image is not available to download
+            // ツイート本文を取得
+            const tweetElem = btn.closest(`[data-testid="tweet"]`);
+            let tweetContent = "";
+            if (tweetElem) {
+                const tweetTextElem = tweetElem.querySelector('[data-testid="tweetText"]');
+                if (tweetTextElem) {
+                    tweetContent = tweetTextElem.textContent.slice(0, 50); // 最初の50文字
+                    tweetContent = tweetContent.replace(/[\\/:"*?<>|]/g, ""); // 特殊文字を削除
+                }
+            }
+
+            const sampleText = isSample ? "sample" : "";
             const filename = renderTemplateString(imageFilenameTemplate, {
-                author, lastModifiedDate, tweetId: id, name, extension, sampleText,
+                author,
+                lastModifiedDate,
+                tweetId: id,
+                name,
+                extension,
+                sampleText,
+                tweetContent,
             }).value;
             downloadBlob(blob, filename, currentUrl);
 
@@ -1103,8 +1120,24 @@ function hoistFeatures() {
             Core._verifyBlob(blob, url);
             Btn.completeProgress(btn);
 
+            // ツイート本文を取得
+            const tweetElem = btn.closest(`[data-testid="tweet"]`);
+            let tweetContent = "";
+            if (tweetElem) {
+                const tweetTextElem = tweetElem.querySelector('[data-testid="tweetText"]');
+                if (tweetTextElem) {
+                    tweetContent = tweetTextElem.textContent.slice(0, 50); // 最初の50文字
+                    tweetContent = tweetContent.replace(/[\\/:"*?<>|]/g, ""); // 特殊文字を削除
+                }
+            }
+
             const filename = renderTemplateString(videoFilenameTemplate, {
-                author, lastModifiedDate, tweetId: videoTweetId, name, extension,
+                author,
+                lastModifiedDate,
+                tweetId: videoTweetId,
+                name,
+                extension,
+                tweetContent,
             }).value;
             downloadBlob(blob, filename, url);
 
