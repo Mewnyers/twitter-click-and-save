@@ -126,8 +126,8 @@ const datePattern = "YYYY.MM.DD";
  *
  * Note, that the script updating will overwrite the changes.
  * */
-const imageFilenameTemplate      = `[twitter]{sampleText} {tweetContent}—{author}—{lastModifiedDate}—{name}.{extension}`;
-const videoFilenameTemplate      = `[twitter] {tweetContent}—{author}—{lastModifiedDate}—{name}.{extension}`;
+const imageFilenameTemplate      = `[@{author}_{lastModifiedDate}]_{tweetContent}.{extension}`;
+const videoFilenameTemplate      = `[@{author}_{lastModifiedDate}]_{tweetContent}.{extension}`;
 const backgroundFilenameTemplate = `[twitter][bg] {username}—{lastModifiedDate}—{id}—{seconds}.{extension}`;
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -987,7 +987,7 @@ function hoistFeatures() {
             if (tweetElem) {
                 const tweetTextElem = tweetElem.querySelector('[data-testid="tweetText"]');
                 if (tweetTextElem) {
-                    tweetContent = tweetTextElem.textContent.slice(0, 50); // 最初の50文字
+                    tweetContent = tweetTextElem.textContent.slice(0, 200); // 最初の200文字
                     tweetContent = tweetContent.replace(/[\\/:"*?<>|]/g, ""); // 特殊文字を削除
                 }
             }
@@ -1126,7 +1126,7 @@ function hoistFeatures() {
             if (tweetElem) {
                 const tweetTextElem = tweetElem.querySelector('[data-testid="tweetText"]');
                 if (tweetTextElem) {
-                    tweetContent = tweetTextElem.textContent.slice(0, 50); // 最初の50文字
+                    tweetContent = tweetTextElem.textContent.slice(0, 200); // 最初の200文字
                     tweetContent = tweetContent.replace(/[\\/:"*?<>|]/g, ""); // 特殊文字を削除
                 }
             }
