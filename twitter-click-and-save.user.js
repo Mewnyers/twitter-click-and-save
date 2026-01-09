@@ -113,7 +113,7 @@ historyHelper.migrateLocalStore();
  * Not OK: "DD-MM-YYYY", "MM-DD-YYYY".
  * @see formatDate
  */
-const datePattern = "YYYY.MM.DD";
+const datePattern = "YYYYMMDDhhmm";
 
 /**
  * I strongly do NOT recommend to change the filename pattern format.
@@ -126,8 +126,8 @@ const datePattern = "YYYY.MM.DD";
  *
  * Note, that the script updating will overwrite the changes.
  * */
-const imageFilenameTemplate      = `[@{author}_{lastModifiedDate}]_{tweetContent}.{extension}`;
-const videoFilenameTemplate      = `[@{author}_{lastModifiedDate}]_{tweetContent}.{extension}`;
+const imageFilenameTemplate      = `[@{author}][{lastModifiedDate}] {tweetContent}{index}.{extension}`;
+const videoFilenameTemplate      = `[@{author}][{lastModifiedDate}] {tweetContent}{index}.{extension}`;
 const backgroundFilenameTemplate = `[twitter][bg] {username}—{lastModifiedDate}—{id}—{seconds}.{extension}`;
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -912,10 +912,26 @@ function hoistFeatures() {
             Btn.markAsDownloaded(btn);
         }
 
-        static async _downloadPhotoMediaEntry(id, author, url, btn) {
+        static async _downloadPhotoMediaEntry(id, author, url, btn, manualIndex = null) {
             Btn.clearState(btn);
             Btn.startDownloading(btn);
             const onProgress = Btn.getOnProgress(btn);
+
+            let index = "1";
+            if (manualIndex !== null) {
+                // マルチメディアダウンロード機能などから指定された場合
+                index = manualIndex;
+            } else {
+                // ボタンの親リンク (例: .../status/123456/photo/3) から数字を抽出
+                // ボタンが配置されている場所のリンク先を確認
+                const parentLink = btn.closest("a"); 
+                if (parentLink && parentLink.href.includes("/photo/")) {
+                    const match = parentLink.href.match(/\/photo\/(\d+)/);
+                    if (match) {
+                        index = match[1];
+                    }
+                }
+            }
 
             const originals = ["orig", "4096x4096"];
             const samples = ["large", "medium", "900x900", "small", "360x360", /*"240x240", "120x120", "tiny"*/];
@@ -1001,6 +1017,7 @@ function hoistFeatures() {
                 extension,
                 sampleText,
                 tweetContent,
+                index,
             }).value;
             downloadBlob(blob, filename, currentUrl);
 
@@ -1050,7 +1067,7 @@ function hoistFeatures() {
                     await Core._downloadVideoMediaEntry(mediaEntry, btn, id); // todo: catch the error
                 } else { // "photo"
                     const {screen_name: author,download_url: url, tweet_id: id} = mediaEntry;
-                    await Core._downloadPhotoMediaEntry(id, author, url, btn);
+                    await Core._downloadPhotoMediaEntry(id, author, url, btn, mediaEntry.index + 1);
                 }
 
                 downloaded++;
@@ -1138,6 +1155,7 @@ function hoistFeatures() {
                 name,
                 extension,
                 tweetContent,
+                index: mediaEntry.index + 1,
             }).value;
             downloadBlob(blob, filename, url);
 
