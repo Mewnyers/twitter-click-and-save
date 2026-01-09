@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name        Twitter Click'n'Save
-// @version     1.27.1-2025.11.15
+// @name        Twitter Click'n'Save - forked by Mewnyers
+// @version     1.27.5-2026.01.10
 // @namespace   gh.alttiri
 // @description Add buttons to download images and videos in Twitter, also does some other enhancements.
 // @match       https://twitter.com/*
@@ -917,19 +917,41 @@ function hoistFeatures() {
             Btn.startDownloading(btn);
             const onProgress = Btn.getOnProgress(btn);
 
-            let index = "1";
-            if (manualIndex !== null) {
-                // マルチメディアダウンロード機能などから指定された場合
-                index = manualIndex;
-            } else {
-                // ボタンの親リンク (例: .../status/123456/photo/3) から数字を抽出
-                // ボタンが配置されている場所のリンク先を確認
-                const parentLink = btn.closest("a"); 
-                if (parentLink && parentLink.href.includes("/photo/")) {
-                    const match = parentLink.href.match(/\/photo\/(\d+)/);
-                    if (match) {
-                        index = match[1];
+            let indexString = ""; // デフォルトは空文字（1枚のときは何もつけない）
+            
+            try {
+                // APIからメディア情報を取得して、枚数を確認する
+                // (キャッシュが効くので2回目以降は高速です)
+                const medias = await API.getTweetMedias(id);
+                
+                // 2枚以上ある場合のみ、インデックスを付与する
+                if (medias.length > 1) {
+                    let photoIndex = -1;
+
+                    if (manualIndex !== null) {
+                        // 一括ダウンロードなどで既に番号がわかっている場合
+                        photoIndex = manualIndex;
+                    } else {
+                        // URLから該当する画像の順番を探す
+                        // (URLに含まれるファイル名部分で照合)
+                        const currentFileName = ImageHistory._getImageNameFromUrl(url); 
+                        const match = medias.find(m => m.preview_url.includes(currentFileName) || m.download_url.includes(currentFileName) || m.media_key.includes(currentFileName));
+                        if (match) {
+                            photoIndex = match.index + 1; // 0始まりなので+1
+                        }
                     }
+
+                    // 番号が特定できた場合、 _1 のような形式にする
+                    if (photoIndex > 0) {
+                        indexString = `_${photoIndex}`;
+                    }
+                }
+            } catch (err) {
+                console.warn("[ujs] Failed to get media count, fallback to default.", err);
+                // APIエラー時は、念のためURLから番号が取れれば付けておく（ファイル名重複回避のため）
+                const urlMatch = btn.closest("a")?.href.match(/\/photo\/(\d+)/);
+                if (urlMatch) {
+                    indexString = `_${urlMatch[1]}`;
                 }
             }
 
@@ -1017,7 +1039,7 @@ function hoistFeatures() {
                 extension,
                 sampleText,
                 tweetContent,
-                index,
+                index: indexString,
             }).value;
             downloadBlob(blob, filename, currentUrl);
 
@@ -1148,6 +1170,20 @@ function hoistFeatures() {
                 }
             }
 
+            let indexString = "";
+            try {
+                // 動画の場合、既にAPI経由でmediaEntryが渡されているため、
+                // APIを再コールせずとも、mediaEntryが含まれていたリストの長さが分かればベストですが、
+                // 簡易的にAPIを呼んで確認します（キャッシュされます）。
+                const medias = await API.getTweetMedias(id);
+                if (medias.length > 1) {
+                    indexString = `_${mediaEntry.index + 1}`;
+                }
+            } catch(e) {
+                // エラー時は念のため付けておくか、空にする
+                if (mediaEntry.index > 0) indexString = `_${mediaEntry.index + 1}`;
+            }
+
             const filename = renderTemplateString(videoFilenameTemplate, {
                 author,
                 lastModifiedDate,
@@ -1155,7 +1191,7 @@ function hoistFeatures() {
                 name,
                 extension,
                 tweetContent,
-                index: mediaEntry.index + 1,
+                index: indexString,
             }).value;
             downloadBlob(blob, filename, url);
 
