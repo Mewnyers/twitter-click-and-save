@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Twitter Click'n'Save - forked by Mewnyers
-// @version     1.27.5-2026.01.10
+// @version     1.27.6-2026.01.10
 // @namespace   gh.alttiri
 // @description Add buttons to download images and videos in Twitter, also does some other enhancements.
 // @match       https://twitter.com/*
@@ -912,7 +912,7 @@ function hoistFeatures() {
             Btn.markAsDownloaded(btn);
         }
 
-        static async _downloadPhotoMediaEntry(id, author, url, btn, manualIndex = null) {
+        static async _downloadPhotoMediaEntry(id, author, url, btn, manualIndex = null, passedTweetContent = null) {
             Btn.clearState(btn);
             Btn.startDownloading(btn);
             const onProgress = Btn.getOnProgress(btn);
@@ -1019,15 +1019,24 @@ function hoistFeatures() {
             Core._verifyBlob(blob, currentUrl); // throws an error for 503 http status code
             Btn.completeProgress(btn);
 
-            // ツイート本文を取得
-            const tweetElem = btn.closest(`[data-testid="tweet"]`);
-            let tweetContent = "";
-            if (tweetElem) {
-                const tweetTextElem = tweetElem.querySelector('[data-testid="tweetText"]');
-                if (tweetTextElem) {
-                    tweetContent = tweetTextElem.textContent.slice(0, 200); // 最初の200文字
-                    tweetContent = tweetContent.replace(/[\\/:"*?<>|]/g, ""); // 特殊文字を削除
+            // --- ツイート本文を取得
+            let tweetContent = passedTweetContent || ""; // 引数で渡されていればそれを使う
+
+            if (!tweetContent) {
+                // 渡されていない場合のみDOMから探す
+                const tweetElem = btn.closest(`[data-testid="tweet"]`);
+                if (tweetElem) {
+                    const tweetTextElem = tweetElem.querySelector('[data-testid="tweetText"]');
+                    if (tweetTextElem) {
+                        tweetContent = tweetTextElem.textContent;
+                    }
                 }
+            }
+
+            // クリーニング処理 (200文字制限 + 特殊文字削除)
+            if (tweetContent) {
+                tweetContent = tweetContent.slice(0, 200);
+                tweetContent = tweetContent.replace(/[\\/:"*?<>|]/g, "");
             }
 
             const sampleText = isSample ? "sample" : "";
@@ -1089,7 +1098,7 @@ function hoistFeatures() {
                     await Core._downloadVideoMediaEntry(mediaEntry, btn, id); // todo: catch the error
                 } else { // "photo"
                     const {screen_name: author,download_url: url, tweet_id: id} = mediaEntry;
-                    await Core._downloadPhotoMediaEntry(id, author, url, btn, mediaEntry.index + 1);
+                    await Core._downloadPhotoMediaEntry(id, author, url, btn, mediaEntry.index + 1, mediaEntry.tweet_text);
                 }
 
                 downloaded++;
@@ -1160,14 +1169,24 @@ function hoistFeatures() {
             Btn.completeProgress(btn);
 
             // ツイート本文を取得
-            const tweetElem = btn.closest(`[data-testid="tweet"]`);
-            let tweetContent = "";
-            if (tweetElem) {
-                const tweetTextElem = tweetElem.querySelector('[data-testid="tweetText"]');
-                if (tweetTextElem) {
-                    tweetContent = tweetTextElem.textContent.slice(0, 200); // 最初の200文字
-                    tweetContent = tweetContent.replace(/[\\/:"*?<>|]/g, ""); // 特殊文字を削除
+            // mediaEntryにAPI由来のテキスト(tweet_text)が入っているので優先利用
+            let tweetContent = mediaEntry.tweet_text || "";
+
+            if (!tweetContent) {
+                // フォールバック: DOMから探す
+                const tweetElem = btn.closest(`[data-testid="tweet"]`);
+                if (tweetElem) {
+                    const tweetTextElem = tweetElem.querySelector('[data-testid="tweetText"]');
+                    if (tweetTextElem) {
+                        tweetContent = tweetTextElem.textContent;
+                    }
                 }
+            }
+
+            // クリーニング処理 (200文字制限 + 特殊文字削除)
+            if (tweetContent) {
+                tweetContent = tweetContent.slice(0, 200);
+                tweetContent = tweetContent.replace(/[\\/:"*?<>|]/g, "");
             }
 
             let indexString = "";
