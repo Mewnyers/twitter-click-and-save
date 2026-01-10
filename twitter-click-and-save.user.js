@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Twitter Click'n'Save - forked by Mewnyers
-// @version     1.27.6-2026.01.10
+// @version     1.27.7-2026.01.10
 // @namespace   gh.alttiri
 // @description Add buttons to download images and videos in Twitter, also does some other enhancements.
 // @match       https://twitter.com/*
@@ -738,6 +738,31 @@ function hoistFeatures() {
             if (downloaded) {
                 Btn.alreadyDownloaded(btn);
             }
+            
+            const tweetElem = btnPlace.closest(`[data-testid="tweet"]`);
+            if (tweetElem) {
+                // 画像枠と動画枠の両方を取得して「メディア総数」とする
+                const allMedias = tweetElem.querySelectorAll('[data-testid="tweetPhoto"], [data-testid="videoComponent"]');
+                
+                // 現在の画像が属している枠(tweetPhoto)を取得
+                const currentMediaContainer = img.closest('[data-testid="tweetPhoto"]');
+
+                // 「メディアが2つ以上」かつ「現在の画像が1つ目のメディア枠内にある」場合
+                if (allMedias.length > 1 && currentMediaContainer && allMedias[0] === currentMediaContainer) {
+                    
+                    const bulkBtn = Btn.createButton({
+                        url: img.src, 
+                        isThumb, 
+                        isMultiMedia: true 
+                    });
+
+                    bulkBtn.classList.add("ujs-btn-bulk");
+                    bulkBtn.title = "Download ALL media";
+                    bulkBtn.addEventListener("click", Core._multiMediaThumbClickHandler);
+                    
+                    btnPlace.append(bulkBtn);
+                }
+            }
             void sleep(50).then(() => {
                 if (location.href.includes("/status/")) {
                     const rect = btn.getBoundingClientRect();
@@ -826,6 +851,29 @@ function hoistFeatures() {
             const btn = Btn.createButton({url: imgElem.src, isVideo: true, isThumb});
             btn.addEventListener("click", Core._videoClickHandler);
             btnPlace.append(btn);
+
+            const bulkTweetElem = btnPlace.closest(`[data-testid="tweet"]`);
+            if (bulkTweetElem) {
+                // 画像枠と動画枠の両方を取得
+                const allMedias = bulkTweetElem.querySelectorAll('[data-testid="tweetPhoto"], [data-testid="videoComponent"]');
+
+                // 「メディアが2つ以上」かつ「1つ目のメディア枠の中に、現在の画像(imgElem)が含まれている」なら1枚目とみなす
+                if (allMedias.length > 1 && allMedias[0].contains(imgElem)) {
+                    
+                    const bulkBtn = Btn.createButton({
+                        url: imgElem.src,
+                        isVideo: true,
+                        isThumb, 
+                        isMultiMedia: true 
+                    });
+
+                    bulkBtn.classList.add("ujs-btn-bulk");
+                    bulkBtn.title = "Download ALL media";
+                    bulkBtn.addEventListener("click", Core._multiMediaThumbClickHandler);
+                    
+                    btnPlace.append(bulkBtn);
+                }
+            }
 
             const tweet = Tweet.of(btn);
             const tweetId = tweet.id;
@@ -1750,6 +1798,17 @@ div[aria-label="${labelText}"]:hover .ujs-btn-download {
 .ujs-btn-download[data-is-multi-media] .ujs-dot[style="--media-progress: 100%;"] + .ujs-back {
     border-top:   1px solid white;
     border-right: 1px solid white;
+}
+
+.ujs-btn-download.ujs-btn-bulk {
+    left: 42px;
+}
+
+.ujs-not-downloaded.ujs-btn-bulk .ujs-btn-background {
+    background: #794BC4; /* Purple */
+}
+.ujs-btn-bulk .ujs-dot {
+    background: rgba(255, 255, 255, 0.9) linear-gradient(to right, white var(--media-progress), transparent 0%);
 }
 
 `;
