@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Twitter Click'n'Save - forked by Mewnyers
-// @version     1.27.7-2026.01.10
+// @version     1.28.0-2026.01.10
 // @namespace   gh.alttiri
 // @description Add buttons to download images and videos in Twitter, also does some other enhancements.
 // @match       https://twitter.com/*
@@ -741,14 +741,19 @@ function hoistFeatures() {
             
             const tweetElem = btnPlace.closest(`[data-testid="tweet"]`);
             if (tweetElem) {
-                // 画像枠と動画枠の両方を取得して「メディア総数」とする
+                // DOM要素数ではなく、実質的なメディアコンテンツ数を計算する
+                const videoComponents = tweetElem.querySelectorAll('[data-testid="videoComponent"]');
+                const photoImages = [...tweetElem.querySelectorAll('[data-testid="tweetPhoto"] img')];
+                // ポスター画像を除外してカウント
+                const realPhotoCount = photoImages.filter(i => !Core._isVideoPoster(i)).length;
+                const totalMediaCount = videoComponents.length + realPhotoCount;
+
+                // 位置特定用の要素取得（既存ロジック）
                 const allMedias = tweetElem.querySelectorAll('[data-testid="tweetPhoto"], [data-testid="videoComponent"]');
-                
-                // 現在の画像が属している枠(tweetPhoto)を取得
                 const currentMediaContainer = img.closest('[data-testid="tweetPhoto"]');
 
-                // 「メディアが2つ以上」かつ「現在の画像が1つ目のメディア枠内にある」場合
-                if (allMedias.length > 1 && currentMediaContainer && allMedias[0] === currentMediaContainer) {
+                // 「メディア総数が2以上」かつ「現在の画像が1つ目のメディア枠内にある」場合
+                if (totalMediaCount > 1 && currentMediaContainer && allMedias[0] === currentMediaContainer) {
                     
                     const bulkBtn = Btn.createButton({
                         url: img.src, 
@@ -854,11 +859,18 @@ function hoistFeatures() {
 
             const bulkTweetElem = btnPlace.closest(`[data-testid="tweet"]`);
             if (bulkTweetElem) {
-                // 画像枠と動画枠の両方を取得
+                // DOM要素数ではなく、実質的なメディアコンテンツ数を計算する
+                const videoComponents = bulkTweetElem.querySelectorAll('[data-testid="videoComponent"]');
+                const photoImages = [...bulkTweetElem.querySelectorAll('[data-testid="tweetPhoto"] img')];
+                // ポスター画像を除外してカウント
+                const realPhotoCount = photoImages.filter(i => !Core._isVideoPoster(i)).length;
+                const totalMediaCount = videoComponents.length + realPhotoCount;
+
+                // 位置特定用の要素取得
                 const allMedias = bulkTweetElem.querySelectorAll('[data-testid="tweetPhoto"], [data-testid="videoComponent"]');
 
-                // 「メディアが2つ以上」かつ「1つ目のメディア枠の中に、現在の画像(imgElem)が含まれている」なら1枚目とみなす
-                if (allMedias.length > 1 && allMedias[0].contains(imgElem)) {
+                // 「メディア総数が2以上」かつ「1つ目のメディア枠の中に、現在の画像(imgElem)が含まれている」場合
+                if (totalMediaCount > 1 && allMedias.length > 0 && allMedias[0].contains(imgElem)) {
                     
                     const bulkBtn = Btn.createButton({
                         url: imgElem.src,
