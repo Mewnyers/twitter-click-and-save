@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Twitter Click'n'Save - forked by Mewnyers
-// @version     1.28.0-2026.01.10
+// @version     1.28.1-2026.01.20
 // @namespace   gh.alttiri
 // @description Add buttons to download images and videos in Twitter, also does some other enhancements.
 // @match       https://twitter.com/*
@@ -1134,8 +1134,9 @@ function hoistFeatures() {
             event.stopImmediatePropagation();
 
             const btn = Btn.getBtnElemFromEvent(event);
-            Btn.clearState(btn);
-            Btn.startDownloading(btn);
+            // 一括ボタン自体の見た目は変更しない（紫のまま、プログレスなし）
+            // Btn.clearState(btn);
+            // Btn.startDownloading(btn);
             const {id} = Tweet.of(btn);
 
             /** @type {TweetMediaEntry[]} */
@@ -1147,26 +1148,53 @@ function hoistFeatures() {
                 throw Btn.error({btn, err, text: "API.getTweetMedias failed.{ffHint}"});
             }
 
-            Btn.resetMediaProgress(btn);
-            const total = medias.length;
-            let downloaded = 0;
+            // 同じツイート内にある「単体ダウンロードボタン」をすべて取得
+            const tweetElem = btn.closest('[data-testid="tweet"]');
+            const singleBtns = tweetElem 
+                ? Array.from(tweetElem.querySelectorAll('.ujs-btn-download:not(.ujs-btn-bulk)')) 
+                : [];
 
+            // メディアごとに順番に処理
             for (const mediaEntry of medias) {
-                Btn.markAsNotDownloaded(btn);
+                // このメディアに対応する単体ボタンを特定する
+                const mediaFileName = ImageHistory._getImageNameFromUrl(mediaEntry.preview_url);
+                
+                let targetBtn = singleBtns.find(btn => {
+                    if (!btn.dataset.url) return false;
+                    const btnFileName = ImageHistory._getImageNameFromUrl(btn.dataset.url);
+                    return btnFileName === mediaFileName;
+                });
 
-                if (mediaEntry.type === "video") {
-                    await Core._downloadVideoMediaEntry(mediaEntry, btn, id); // todo: catch the error
-                } else { // "photo"
-                    const {screen_name: author,download_url: url, tweet_id: id} = mediaEntry;
-                    await Core._downloadPhotoMediaEntry(id, author, url, btn, mediaEntry.index + 1, mediaEntry.tweet_text);
+                // 見つからない場合のフォールバック（配列のインデックスで推定）
+                if (!targetBtn && singleBtns[mediaEntry.index]) {
+                    targetBtn = singleBtns[mediaEntry.index];
                 }
 
-                downloaded++;
-                Btn.setMediaProgress(btn, downloaded, total);
+                // ボタンが見つかればそれをUI操作対象とし、なければダミーオブジェクトを使用
+                const uiBtn = targetBtn || { 
+                    dataset: {}, 
+                    classList: { add:()=>{}, remove:()=>{} }, 
+                    querySelector: () => ({ style: {} }), 
+                    title: "",
+                    addEventListener: () => {},
+                    closest: () => null
+                };
 
-                await sleep(50);
+                try {
+                    // 単体ボタンに処理を委譲する
+                    if (mediaEntry.type === "video") {
+                        await Core._downloadVideoMediaEntry(mediaEntry, uiBtn, id);
+                    } else { 
+                        // "photo"
+                        const {screen_name: author, download_url: url, tweet_id: id} = mediaEntry;
+                        await Core._downloadPhotoMediaEntry(id, author, url, uiBtn, mediaEntry.index + 1, mediaEntry.tweet_text);
+                    }
+                } catch (e) {
+                    console.error("[ujs] Bulk download partial error:", e);
+                }
+                await sleep(250);
             }
-            Btn.markAsDownloaded(btn);
+            // Btn.markAsDownloaded(btn);
         }
 
         static async _videoClickHandler(event) { // todo: parse the URL from HTML for "GIF"s // https://video.twimg.com/tweet_video/12345Abc.mp4
