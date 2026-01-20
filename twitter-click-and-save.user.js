@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Twitter Click'n'Save - forked by Mewnyers
-// @version     1.28.1-2026.01.20
+// @version     1.28.2-2026.01.21
 // @namespace   gh.alttiri
 // @description Add buttons to download images and videos in Twitter, also does some other enhancements.
 // @match       https://twitter.com/*
@@ -977,31 +977,41 @@ function hoistFeatures() {
             Btn.startDownloading(btn);
             const onProgress = Btn.getOnProgress(btn);
 
-            let indexString = ""; // デフォルトは空文字（1枚のときは何もつけない）
+            let indexString = "";
+            let apiTweetText = "";
             
             try {
                 // APIからメディア情報を取得して、枚数を確認する
                 // (キャッシュが効くので2回目以降は高速です)
                 const medias = await API.getTweetMedias(id);
                 
-                // 2枚以上ある場合のみ、インデックスを付与する
+                // URLに該当するメディアを探してテキストを確保する
+                const currentFileName = ImageHistory._getImageNameFromUrl(url); 
+                const match = medias.find(m => 
+                    m.preview_url.includes(currentFileName) || 
+                    m.download_url.includes(currentFileName) || 
+                    m.media_key.includes(currentFileName)
+                );
+
+                if (match) {
+                    // マッチしたらテキストを確保
+                    apiTweetText = match.tweet_text;
+                } else if (medias.length === 1) {
+                    // マッチしなくても1枚しかなければそのテキストを使う
+                    apiTweetText = medias[0].tweet_text;
+                }
+
+                // インデックスの処理
                 if (medias.length > 1) {
                     let photoIndex = -1;
 
                     if (manualIndex !== null) {
-                        // 一括ダウンロードなどで既に番号がわかっている場合
                         photoIndex = manualIndex;
-                    } else {
-                        // URLから該当する画像の順番を探す
-                        // (URLに含まれるファイル名部分で照合)
-                        const currentFileName = ImageHistory._getImageNameFromUrl(url); 
-                        const match = medias.find(m => m.preview_url.includes(currentFileName) || m.download_url.includes(currentFileName) || m.media_key.includes(currentFileName));
-                        if (match) {
-                            photoIndex = match.index + 1; // 0始まりなので+1
-                        }
+                    } else if (match) {
+                        photoIndex = match.index + 1;
                     }
 
-                    // 番号が特定できた場合、 _1 のような形式にする
+                    // 2枚以上ある場合のみ、ファイル名に番号(_1, _2...)をつける
                     if (photoIndex > 0) {
                         indexString = `_${photoIndex}`;
                     }
@@ -1079,11 +1089,15 @@ function hoistFeatures() {
             Core._verifyBlob(blob, currentUrl); // throws an error for 503 http status code
             Btn.completeProgress(btn);
 
-            // --- ツイート本文を取得
+            // ツイート本文を取得
             let tweetContent = passedTweetContent || ""; // 引数で渡されていればそれを使う
 
+            // APIから取得したテキストがあれば、DOM探索よりも優先して採用する
+            if (!tweetContent && apiTweetText) {
+                tweetContent = apiTweetText;
+            }
+            // 渡されていない場合のみDOMから探す
             if (!tweetContent) {
-                // 渡されていない場合のみDOMから探す
                 const tweetElem = btn.closest(`[data-testid="tweet"]`);
                 if (tweetElem) {
                     const tweetTextElem = tweetElem.querySelector('[data-testid="tweetText"]');
