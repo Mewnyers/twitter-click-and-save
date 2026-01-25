@@ -1162,11 +1162,17 @@ function hoistFeatures() {
                 throw Btn.error({btn, err, text: "API.getTweetMedias failed.{ffHint}"});
             }
 
-            // 同じツイート内にある「単体ダウンロードボタン」をすべて取得
+            // 同じツイート(または同じコンテナ)内にある「単体ダウンロードボタン」を取得
             const tweetElem = btn.closest('[data-testid="tweet"]');
-            const singleBtns = tweetElem 
-                ? Array.from(tweetElem.querySelectorAll('.ujs-btn-download:not(.ujs-btn-bulk)')) 
-                : [];
+            let singleBtns = [];
+
+            if (tweetElem) {
+                // タイムラインなど: ツイート全体からボタンを探す
+                singleBtns = Array.from(tweetElem.querySelectorAll('.ujs-btn-download:not(.ujs-btn-bulk)'));
+            } else if (btn.parentElement) {
+                // メディア欄など: tweetコンテナがないため、直近の親要素からボタンを探す
+                singleBtns = Array.from(btn.parentElement.querySelectorAll('.ujs-btn-download:not(.ujs-btn-bulk)'));
+            }
 
             // メディアごとに順番に処理
             for (const mediaEntry of medias) {
