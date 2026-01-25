@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Twitter Click'n'Save - forked by Mewnyers
-// @version     1.28.3-2026.01.25
+// @version     1.28.4-2026.01.26
 // @namespace   gh.alttiri
 // @description Add buttons to download images and videos in Twitter, also does some other enhancements.
 // @match       https://twitter.com/*
@@ -1019,7 +1019,7 @@ function hoistFeatures() {
             } catch (err) {
                 console.warn("[ujs] Failed to get media count, fallback to default.", err);
                 // APIエラー時は、念のためURLから番号が取れれば付けておく（ファイル名重複回避のため）
-                const urlMatch = btn.closest("a")?.href.match(/\/photo\/(\d+)/);
+                const urlMatch = btn.closest("a")?.href?.match(/\/photo\/(\d+)/);
                 if (urlMatch) {
                     indexString = `_${urlMatch[1]}`;
                 }
@@ -1194,10 +1194,10 @@ function hoistFeatures() {
                 const uiBtn = targetBtn || { 
                     dataset: {}, 
                     classList: { add:()=>{}, remove:()=>{} }, 
-                    querySelector: () => ({ style: {} }), 
+                    querySelector: () => ({ style: {}, dataset: {}, textContent: "" }), 
                     title: "",
                     addEventListener: () => {},
-                    closest: () => null
+                    closest: () => null 
                 };
 
                 try {
