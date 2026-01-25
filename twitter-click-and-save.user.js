@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Twitter Click'n'Save - forked by Mewnyers
-// @version     1.28.2-2026.01.21
+// @version     1.28.3-2026.01.25
 // @namespace   gh.alttiri
 // @description Add buttons to download images and videos in Twitter, also does some other enhancements.
 // @match       https://twitter.com/*
